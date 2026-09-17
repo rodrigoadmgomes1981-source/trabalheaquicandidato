@@ -18,9 +18,22 @@ Não existe pesquisa, visualização, download nem exclusão aqui: a única rota
 
 > A tabela `candidates` é criada automaticamente no primeiro envio, se ainda não existir (`db/schema.sql` tem o script equivalente).
 
+## Formatos aceitos
+
+Somente **PDF** (`.pdf`) e **Word** (`.docx`), com o currículo em **texto**, até 4 MB.
+
+Recusados, com mensagem explicando o motivo e como resolver:
+
+- imagens (`.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`, `.webp`, `.gif`, `.bmp`, `.tif`) e outros formatos;
+- `.doc` (Word antigo) — o candidato é orientado a salvar como `.docx` ou PDF;
+- **PDF que é foto ou digitalização** do currículo: o texto é extraído no navegador com o pdf.js e o arquivo é recusado quando nenhuma página tem texto, ou quando o texto útil fica abaixo de 350 caracteres / 60 palavras (marcas de scanner como "Scanned by CamScanner" e numeração de página são descontadas antes da conta);
+- arquivo com extensão trocada: a assinatura do arquivo é conferida (`%PDF` para PDF, `PK` para `.docx`), então um JPG renomeado para `.pdf` não passa.
+
+As regras estão em `lib/curriculo-texto.js` e valem nos **dois lados**: na tela (`src/main.jsx`) e na API (`api/candidates.js`), de modo que nem o envio pelo "Compartilhar" do celular nem uma chamada direta ao endpoint escapam. Os limites ficam em `LIMITES` e as mensagens em `MSG`, nesse mesmo arquivo.
+
 ## Como funciona para o candidato
 
-1. Abre o link, toca em **Toque para escolher o currículo** e seleciona o PDF ou DOCX.
+1. Abre o link, lê o aviso de formatos e toca em **Toque para escolher o currículo** para selecionar o PDF ou `.docx`.
 2. Toca em **Enviar currículo**. O texto é lido no próprio navegador e enviado junto com o arquivo.
 3. Aparece o pop-up **"Currículo cadastrado!"**; ao fechar, a tela volta limpa, pronta para outro envio.
 

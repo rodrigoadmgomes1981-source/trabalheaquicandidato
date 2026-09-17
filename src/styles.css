@@ -129,3 +129,12 @@ h1{font:800 clamp(24px,4vw,32px) Manrope;margin:0;color:var(--deep);letter-spaci
   .steps i{width:12px}
   .drop{min-height:170px;padding:26px 14px}
 }
+
+/* Aviso de formatos aceitos */
+.formatos{border:1px solid var(--line);background:#FBFAFE;border-radius:14px;padding:14px 16px;margin-bottom:18px;display:grid;gap:9px}
+.formatos p{margin:0;display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.5;color:#45435F}
+.formatos svg{width:17px;height:17px;flex:none;margin-top:1px}
+.formatos .ok svg{color:var(--brand-600)}
+.formatos .no svg{color:#C2410C}
+.formatos .no{color:#7C3A1D}
+.formatos .dica{display:block;font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:9px}

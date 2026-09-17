@@ -1,9 +1,10 @@
 import './polyfills.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X} from 'lucide-react';
+import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X,FileCheck2,ImageOff} from 'lucide-react';
 import mammoth from 'mammoth/mammoth.browser';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+import {ACCEPT_ATTR,LIMITES,MSG,avaliarTexto,validarAssinatura,validarTipo} from '../lib/curriculo-texto.js';
 import './styles.css';
 
 const MAX_UPLOAD=4*1024*1024;
@@ -34,16 +35,20 @@ async function takeSharedFile(){
   return new File([blob],name,{type});
 }
 
-async function extractText(file){
-  const name=file.name.toLowerCase();
-  const isPdf=file.type==='application/pdf'||name.endsWith('.pdf');
-  if(!isPdf&&!name.endsWith('.docx'))throw Error('Envie seu currículo em PDF ou DOCX.');
+const bytes=async file=>new Uint8Array(await (typeof file.arrayBuffer==='function'?file.arrayBuffer():new Response(file).arrayBuffer()));
+
+/**
+ * Lê o texto do arquivo e devolve também quantas páginas têm texto,
+ * para separar um currículo digital de uma digitalização.
+ */
+async function extractText(file,tipo){
+  const buffer=await bytes(file);
+  if(!validarAssinatura(buffer.subarray(0,8),tipo))throw Error(MSG.corrompido);
   try{
-    const buffer=typeof file.arrayBuffer==='function'?await file.arrayBuffer():await new Response(file).arrayBuffer();
-    if(isPdf){
+    if(tipo==='pdf'){
       const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
       pdfjs.GlobalWorkerOptions.workerSrc=pdfWorkerUrl;
-      const pdf=await pdfjs.getDocument({data:new Uint8Array(buffer),useWorkerFetch:false,isEvalSupported:false}).promise;
+      const pdf=await pdfjs.getDocument({data:buffer,useWorkerFetch:false,isEvalSupported:false}).promise;
       const pages=[];
       for(let i=1;i<=pdf.numPages;i++){
         const page=await pdf.getPage(i),content=await page.getTextContent();
@@ -52,13 +57,17 @@ async function extractText(file){
         pages.push(text);
         page.cleanup();
       }
+      const paginas=pdf.numPages;
       await pdf.destroy();
-      return pages.join('\n').replace(/[ \t]+/g,' ').trim();
+      const comTexto=pages.filter(p=>(p.match(/[0-9A-Za-zÀ-ÿ]/g)||[]).length>=LIMITES.minPaginaComTexto).length;
+      return {texto:pages.join('\n').replace(/[ \t]+/g,' ').trim(),paginas,paginasComTexto:comTexto};
     }
-    return (await mammoth.extractRawText({arrayBuffer:buffer})).value.trim();
+    const texto=(await mammoth.extractRawText({arrayBuffer:buffer.buffer})).value.trim();
+    return {texto,paginas:0,paginasComTexto:0};
   }catch(error){
+    if(error?.message===MSG.corrompido)throw error;
     console.error('Falha ao ler currículo',error);
-    throw Error('Não foi possível ler este arquivo. Salve o currículo novamente em PDF ou DOCX. Se ele for uma foto ou digitalização, o texto não pode ser lido.');
+    throw Error(MSG.curto);
   }
 }
 
@@ -102,7 +111,8 @@ function App(){
   const chooseFile=f=>{
     setMessage('');
     if(!f){setFile(null);return false}
-    if(!/\.(pdf|docx)$/i.test(f.name)){setFile(null);setMessage('Envie seu currículo em PDF ou DOCX.');return false}
+    const tipo=validarTipo(f.name,f.type);
+    if(!tipo.ok){setFile(null);setMessage(tipo.motivo);return false}
     if(f.size>MAX_UPLOAD){setFile(null);setMessage('O arquivo deve ter até 4 MB.');return false}
     setFile(f);
     return true;
@@ -111,11 +121,16 @@ function App(){
   const send=async file=>{
     setLoading(true);setMessage('');
     try{
-      const extractedText=await extractText(file);
-      if(extractedText.length<30)throw Error('Não foi possível identificar texto suficiente neste currículo. Se ele for uma foto ou digitalização, salve-o como PDF com texto.');
+      const tipo=validarTipo(file.name,file.type);
+      if(!tipo.ok)throw Error(tipo.motivo);
+      const {texto,paginas,paginasComTexto}=await extractText(file,tipo.tipo);
+      const exame=avaliarTexto(texto,{paginas,paginasComTexto,tipo:tipo.tipo});
+      if(!exame.ok)throw Error(exame.motivo);
       const fd=new FormData();
       fd.append('resume',file);
-      fd.append('extractedText',extractedText.slice(0,50000));
+      fd.append('extractedText',texto.slice(0,50000));
+      fd.append('paginas',String(paginas));
+      fd.append('paginasComTexto',String(paginasComTexto));
       let r;
       try{r=await fetch('/api/candidates',{method:'POST',body:fd})}
       catch{throw Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.')}
@@ -166,14 +181,20 @@ function App(){
           <span><b>3</b> Cadastro concluído</span>
         </div>
 
+        <div className="formatos">
+          <p className="ok"><FileCheck2/><span><b>Aceitamos apenas</b> arquivo <b>PDF</b> (.pdf) ou <b>Word</b> (.docx), com o currículo em texto e até 4 MB.</span></p>
+          <p className="no"><ImageOff/><span><b>Não aceitamos</b> foto, print de tela, imagem digitalizada nem PDF feito a partir de imagem (JPG, PNG, HEIC), porque o sistema não consegue ler os dados do currículo.</span></p>
+          <p className="dica">No Word, use <b>Arquivo → Salvar como</b> e escolha <b>PDF</b> ou <b>.docx</b>. O formato <b>.doc</b> (Word antigo) não é aceito.</p>
+        </div>
+
         <label className={'drop'+(dragging?' dragging':'')+(file?' filled':'')}
           onDragOver={e=>{e.preventDefault();setDragging(true)}}
           onDragLeave={()=>setDragging(false)}
           onDrop={e=>{e.preventDefault();setDragging(false);if(!loading)chooseFile(e.dataTransfer.files?.[0])}}>
-          <input ref={inputRef} type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={loading} onChange={e=>chooseFile(e.target.files?.[0])}/>
+          <input ref={inputRef} type="file" accept={ACCEPT_ATTR} disabled={loading} onChange={e=>chooseFile(e.target.files?.[0])}/>
           {file?<FileText/>:<UploadCloud/>}
           <b>{file?file.name:'Toque para escolher o currículo'}</b>
-          <span>{file?'Arquivo selecionado · toque para trocar':'PDF ou DOCX · até 4 MB'}</span>
+          <span>{file?'Arquivo selecionado · toque para trocar':'Somente PDF ou Word (.docx) · até 4 MB'}</span>
         </label>
 
         {isMobile()&&!isStandalone()&&<p className="tip">

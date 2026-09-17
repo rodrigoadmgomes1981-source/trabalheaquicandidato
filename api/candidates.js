@@ -2,9 +2,8 @@ import {randomUUID} from 'node:crypto';
 import {put} from '@vercel/blob';
 import {database,ensureSchema} from '../lib/db.js';
 import {buildSearchText,clean,parseResume} from '../lib/extract.js';
+import {avaliarTexto,validarAssinatura,validarTipo} from '../lib/curriculo-texto.js';
 import {authorized,MAX_UPLOAD} from '../lib/util.js';
-
-const ALLOWED=/\.(pdf|docx)$/i;
 
 async function readForm(req){
   const chunks=[];let size=0;
@@ -31,13 +30,22 @@ export default async function handler(req,res){
     const file=form.get('resume');
     const text=String(form.get('extractedText')||'').slice(0,50000);
     if(!file||typeof file.arrayBuffer!=='function')return res.status(400).json({error:'Currículo obrigatório.'});
-    if(!ALLOWED.test(file.name||''))return res.status(400).json({error:'Envie um currículo em PDF ou DOCX.'});
     if(file.size>MAX_UPLOAD)return res.status(413).json({error:'O arquivo deve ter até 4 MB.'});
-    if(text.trim().length<30)return res.status(400).json({error:'Não foi possível ler o currículo.'});
+
+    // Mesmas regras da tela: só PDF ou .docx, e nunca imagem/digitalização.
+    const tipo=validarTipo(file.name,file.type);
+    if(!tipo.ok)return res.status(400).json({error:tipo.motivo});
+    const bytes=Buffer.from(await file.arrayBuffer());
+    if(!validarAssinatura(bytes.subarray(0,8),tipo.tipo))return res.status(400).json({error:'O arquivo enviado não é um PDF ou .docx válido.'});
+    const exame=avaliarTexto(text,{
+      tipo:tipo.tipo,
+      paginas:parseInt(form.get('paginas')||'0',10)||0,
+      paginasComTexto:parseInt(form.get('paginasComTexto')||'0',10)||0
+    });
+    if(!exame.ok)return res.status(400).json({error:exame.motivo});
 
     const candidate=clean(await parseResume(text));
     const id=randomUUID();
-    const bytes=Buffer.from(await file.arrayBuffer());
     const safeName=(file.name||'curriculo').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w.-]+/g,'_').slice(-120);
     const type=file.type||(/\.pdf$/i.test(file.name)?'application/pdf':'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     let resumeUrl=`/api/resume?id=${id}`,resumeData=bytes.toString('base64');
