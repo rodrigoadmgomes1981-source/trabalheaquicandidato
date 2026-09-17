@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap');
+
+/* Identidade DOC CSC */
+:root{
+  --brand:#6A59F7;
+  --brand-600:#5B4BEE;
+  --brand-700:#4B3ECB;
+  --deep:#241C5E;
+  --ink:#1D1B34;
+  --muted:#6B6A85;
+  --bg:#F8F7FC;
+  --soft:#EEEBFE;
+  --line:#E4E1F0;
+  font-family:'DM Sans',system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--bg);
+}
+*{box-sizing:border-box}
+body{margin:0}
+
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 18px 40px}
+
+/* Topo com a logo */
+.topbar{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:14px;
+  padding:26px 0 30px;flex-wrap:wrap;
+}
+.topbar img{height:44px;width:auto;display:block}
+.topbar span{
+  font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--brand-700);
+  border-left:1px solid var(--line);padding-left:14px;
+}
+
+/* Cartão principal */
+.card{
+  width:100%;max-width:620px;background:#fff;border:1px solid var(--line);
+  border-radius:20px;padding:34px;box-shadow:0 12px 40px #241c5e0f;
+}
+h1{font:800 clamp(24px,4vw,32px) Manrope;margin:0;color:var(--deep);letter-spacing:-.03em}
+.lead{margin:10px 0 26px;color:var(--muted);line-height:1.55}
+
+/* Passos */
+.steps{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+.steps span{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.steps b{width:24px;height:24px;border-radius:50%;background:var(--soft);color:var(--brand-700);display:grid;place-items:center;font-size:12px}
+.steps i{width:28px;height:1px;background:var(--line)}
+
+/* Área de upload */
+.drop{
+  border:2px dashed #C4BDE2;background:linear-gradient(150deg,#FAF9FE,#F3F1FE);
+  border-radius:16px;padding:34px 20px;min-height:200px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  text-align:center;color:var(--muted);cursor:pointer;transition:.18s;
+}
+.drop:hover,.drop.dragging{border-color:var(--brand);background:var(--soft)}
+.drop.filled{border-style:solid;border-color:var(--brand);background:var(--soft)}
+.drop input{display:none}
+.drop svg{width:42px;height:42px;color:var(--brand-600);margin-bottom:6px}
+.drop b{font-size:16px;color:var(--deep);word-break:break-word}
+.drop span{font-size:12px}
+.drop:has(input:disabled){cursor:progress;opacity:.7}
+
+/* Avisos e estados */
+.tip,.processing,.alert,.privacy{margin:16px 0 0;font-size:13px;line-height:1.5}
+.tip{display:flex;gap:9px;align-items:flex-start;background:#F3F1FE;border-radius:12px;padding:12px 14px;color:#45435F}
+.tip>svg{width:17px;flex:none;color:var(--brand-600)}
+.tip svg{width:14px;vertical-align:-2px}
+.processing{display:flex;gap:13px;align-items:center;background:var(--soft);border-radius:12px;padding:14px}
+.processing>svg{width:22px;color:var(--brand-700);flex:none}
+.processing span{display:grid;gap:2px}
+.processing small{color:var(--muted)}
+.alert{background:#FFF1EE;color:#A44032;border-radius:12px;padding:12px 14px}
+.privacy{display:flex;gap:8px;align-items:flex-start;color:#80809A;font-size:12px}
+.privacy svg{width:15px;flex:none;color:#A99BFF}
+
+/* Botão principal */
+.submit{
+  margin-top:20px;width:100%;border:0;background:var(--brand);color:#fff;
+  border-radius:12px;padding:16px;font:700 15px 'DM Sans',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;transition:.15s;
+}
+.submit:hover:not(:disabled){background:var(--brand-600)}
+.submit:disabled{opacity:.5;cursor:not-allowed}
+.submit svg{width:19px}
+
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.foot{margin-top:26px;font-size:12px;color:#8887A0;text-align:center}
+
+/* Pop-up de confirmação */
+.overlay{
+  position:fixed;inset:0;background:#241c5ecc;backdrop-filter:blur(3px);
+  display:grid;place-items:center;padding:20px;z-index:50;
+  animation:fade .16s ease-out;
+}
+.dialog{
+  position:relative;background:#fff;border-radius:20px;padding:34px 30px 28px;
+  width:100%;max-width:400px;text-align:center;box-shadow:0 24px 60px #241c5e40;
+  animation:pop .2s ease-out;
+}
+.dialog-icon{
+  width:66px;height:66px;margin:0 auto 16px;border-radius:50%;
+  background:var(--soft);color:var(--brand-600);display:grid;place-items:center;
+}
+.dialog-icon svg{width:36px;height:36px}
+.dialog h2{margin:0 0 8px;font:800 22px Manrope;color:var(--deep)}
+.dialog p{margin:0 0 22px;color:var(--muted);font-size:14px;line-height:1.55}
+.dialog-ok{
+  width:100%;border:0;background:var(--brand);color:#fff;border-radius:11px;padding:14px;
+  font:700 14px 'DM Sans',sans-serif;cursor:pointer;
+}
+.dialog-ok:hover{background:var(--brand-600)}
+.dialog-close{
+  position:absolute;top:12px;right:12px;border:0;background:none;color:#8887A0;
+  padding:6px;border-radius:8px;cursor:pointer;line-height:0;
+}
+.dialog-close:hover{background:var(--bg);color:var(--ink)}
+.dialog-close svg{width:18px;height:18px}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+
+@media(max-width:600px){
+  .card{padding:22px 18px;border-radius:16px}
+  .topbar{padding:20px 0 22px;gap:10px}
+  .topbar img{height:36px}
+  .steps{font-size:11px;gap:6px}
+  .steps i{width:12px}
+  .drop{min-height:170px;padding:26px 14px}
+}
