@@ -1,26 +1,25 @@
-// Service worker do site do candidato: recebe o currículo compartilhado pelo celular.
-const SHARE_CACHE='talentos-share-v1';
+// Service worker mínimo: mantém o app instalável e serve o shell offline.
+const CACHE='doccsc-edu-v1';
+const SHELL=['/','/index.html','/manifest.webmanifest'];
 
-self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('install',event=>{
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+});
 
 self.addEventListener('fetch',event=>{
-  const url=new URL(event.request.url);
-  if(event.request.method!=='POST'||url.pathname!=='/share-target')return;
-  event.respondWith((async()=>{
-    try{
-      const form=await event.request.formData();
-      const file=form.getAll('resume').find(f=>f&&typeof f==='object'&&f.size>0);
-      const cache=await caches.open(SHARE_CACHE);
-      await cache.delete('/shared-resume');
-      if(file){
-        await cache.put('/shared-resume',new Response(file,{headers:{
-          'content-type':file.type||'application/octet-stream',
-          'x-file-name':encodeURIComponent(file.name||'curriculo')
-        }}));
-        return Response.redirect('/?share=1',303);
-      }
-    }catch(error){console.error('Falha ao receber arquivo compartilhado',error)}
-    return Response.redirect('/?share=erro',303);
-  })());
+  const {request}=event;
+  if(request.method!=='GET')return;
+  const url=new URL(request.url);
+  if(url.origin!==location.origin||url.pathname.startsWith('/api/'))return;
+  event.respondWith(
+    fetch(request).then(response=>{
+      const copy=response.clone();
+      caches.open(CACHE).then(cache=>cache.put(request,copy)).catch(()=>{});
+      return response;
+    }).catch(()=>caches.match(request).then(hit=>hit||caches.match('/index.html')))
+  );
 });

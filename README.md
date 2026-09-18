@@ -1,65 +1,63 @@
-# Talentos DOC — portal do candidato
+# DOC CSC · Educação Virtual
 
-Site público, com a identidade DOC CSC, que faz **apenas uma coisa**: receber o currículo do candidato (PDF ou DOCX, até 4 MB), ler o texto e cadastrar no **mesmo banco de talentos** usado pelo sistema interno.
+Plataforma de treinamento por contrato: o administrador cadastra clientes/contratos, aulas (vídeo + PDF + prazo) e profissionais; cada profissional entra com login próprio, assiste, curte ou não curte, comenta e emite o certificado.
 
-Não existe pesquisa, visualização, download nem exclusão aqui: a única rota é `POST /api/candidates`. Quem tiver o link consegue enviar currículo, e nada mais — a consulta continua só no sistema interno (`trabalheaqui`).
+Stack: React + Vite no front, Vercel Functions no back, Postgres (Neon) no banco. Mesma base do Ágile Talentos.
 
-## Como publicar na Vercel
+## Publicar na Vercel
 
-1. Crie um repositório novo no GitHub com estes arquivos (ex.: `trabalheaqui-candidato`).
-2. Na Vercel: **Add New → Project**, importe esse repositório. O framework é detectado como Vite; não há nada a mudar no build.
-3. Em **Settings → Environment Variables**, use **o mesmo banco do sistema interno** para que os currículos caiam na mesma base:
-   - `DATABASE_URL` (ou `POSTGRES_URL`) — **obrigatória**. Copie o valor exato do projeto `trabalheaqui` (Vercel → projeto interno → Settings → Environment Variables), ou conecte o mesmo banco Neon a este projeto pelo Marketplace.
-   - `BLOB_READ_WRITE_TOKEN` — opcional; se o sistema interno usa Blob, use o mesmo token aqui, senão o arquivo é guardado no próprio Postgres.
-   - `OPENAI_API_KEY` — opcional. Com ela, a IA identifica profissão, cidade, setores e experiência no momento do envio; sem ela, uma extração local mais simples é usada e o texto completo fica indexado do mesmo jeito.
-   - `OPENAI_MODEL` — opcional (padrão `gpt-4.1-mini`).
-   - `APP_PASSWORD` — **não defina** neste projeto. Se definir, o candidato precisará digitar senha e o envio deixa de funcionar pelo link público.
-4. Deploy. O endereço gerado (ex.: `trabalheaqui-candidato.vercel.app`) é o link para mandar aos candidatos.
+1. **Banco de dados** — crie um Neon Postgres no Marketplace da Vercel e conecte ao projeto. As tabelas são criadas sozinhas na primeira utilização (o `db/schema.sql` é opcional, para quem preferir rodar à mão).
+2. **Variáveis de ambiente** (Settings → Environment Variables):
 
-> A tabela `candidates` é criada automaticamente no primeiro envio, se ainda não existir (`db/schema.sql` tem o script equivalente).
+   | Variável | Obrigatória | Para que serve |
+   |---|---|---|
+   | `DATABASE_URL` (ou `POSTGRES_URL`) | sim | conexão com o Neon — a integração já cria |
+   | `ADMIN_PASSWORD` | sim | senha do administrador |
+   | `ADMIN_USER` | não | usuário do administrador (padrão `admin`) |
+   | `AUTH_SECRET` | recomendada | texto longo e aleatório que assina as sessões. Sem ela o sistema usa a `ADMIN_PASSWORD` — e trocar a senha derruba todos os acessos |
 
-## Vagas abertas
+3. Importe a pasta na Vercel ou rode `vercel --prod`.
+4. Entre em `/` na aba **Administrador** com o usuário e a senha definidos acima.
 
-A primeira tela mostra as vagas publicadas no portal interno (espelhadas por `GET /api/jobs`, somente as com situação *publicada*), com vaga, cidade/UF, local, tipo de contratação, valor e descrição.
+Para rodar na sua máquina: `npm install` e `npm run dev` (as rotas `/api/*` só funcionam publicadas na Vercel ou com `vercel dev`).
 
-Em **Tenho interesse** o candidato tem dois caminhos:
+## Como funciona
 
-- **Já enviei meu currículo antes**: informa telefone ou e-mail; `POST /api/apply` localiza a ficha (pelo fim do telefone, ignorando máscara e DDI, ou pelo e-mail) e registra a candidatura. Se não achar, a tela orienta a enviar o currículo.
-- **Ainda não tenho cadastro**: envia o currículo ou preenche os dados; o `vagaId` viaja junto e a candidatura é criada logo após o cadastro.
+### Administrador
 
-Candidatar-se duas vezes na mesma vaga não duplica. A candidatura nasce na etapa *Recebido* e a triagem acontece no portal interno.
+- **Contratos** — cliente, CNPJ, gestor, vigência e situação. Excluir um contrato apaga aulas, profissionais e histórico dele.
+- **Aulas** — título, conteúdo em texto, link do vídeo (YouTube ou Vimeo), PDF de apoio (até 4 MB), carga horária, contrato a que se aplica (ou *todos os contratos*), data de início e prazo final. Fora da janela de datas a aula fica visível mas bloqueada. Aulas em rascunho não aparecem para ninguém.
+- **Profissionais** — nome, função, conselho e nº de inscrição, contrato, contato. Ao salvar, o sistema gera o **usuário** (`nome.sobrenome`, com sufixo se já existir) e uma **senha inicial**, exibidos uma única vez — copie e entregue ao profissional. A senha fica guardada só como hash (scrypt); se perder, use o botão da chave para gerar outra.
+- **Acompanhamento** — uma linha por profissional e por aula: quando assistiu pela primeira vez, último acesso, tempo assistido, percentual, situação e certificado. Filtra por contrato, situação e busca livre; exporta CSV (abre direto no Excel).
+- **Notificações** — todo comentário enviado cai aqui como não lido, com contador no menu. A aba ao lado mostra nominalmente quem curtiu e quem não curtiu cada aula.
 
-## Formatos aceitos
+### Profissional
 
-Somente **PDF** (`.pdf`) e **Word** (`.docx`), com o currículo em **texto**, até 4 MB.
+Vê apenas as aulas do seu contrato (mais as marcadas como "todos os contratos"), com prazo e progresso. Na aula: vídeo, conteúdo, PDF, curtir/não curtir, campo de comentário livre e botão de certificado.
 
-Recusados, com mensagem explicando o motivo e como resolver:
+## Regras que valem a pena conhecer
 
-- imagens (`.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`, `.webp`, `.gif`, `.bmp`, `.tif`) e outros formatos;
-- `.doc` (Word antigo) — o candidato é orientado a salvar como `.docx` ou PDF;
-- **PDF que é foto ou digitalização** do currículo: o texto é extraído no navegador com o pdf.js e o arquivo é recusado quando nenhuma página tem texto, ou quando o texto útil fica abaixo de 350 caracteres / 60 palavras (marcas de scanner como "Scanned by CamScanner" e numeração de página são descontadas antes da conta);
-- arquivo com extensão trocada: a assinatura do arquivo é conferida (`%PDF` para PDF, `PK` para `.docx`), então um JPG renomeado para `.pdf` não passa.
+- **Tempo assistido** — conta 1 segundo por segundo de vídeo em reprodução. Arrastar a barra para o fim não conta; sair da aba pausa a contagem. O tempo é gravado a cada 15 segundos e ao pausar.
+- **Certificado** — liberado com **90%** da duração do vídeo assistidos. Traz nome, função, conselho de classe, aula, carga horária, tempo registrado, data e um **código de validação** (`DOC-XXXX-XXXX`). Qualquer pessoa confere o código em `/?certificado=CODIGO` — inclusive sem login. O botão *Imprimir / salvar em PDF* já sai em A4 paisagem.
+- **Prazos** — antes da data de início a aula aparece como "Em breve"; depois do prazo final ela trava e o tempo deixa de ser contado.
+- **Vídeos** — links do YouTube (`youtu.be/…`, `watch?v=…`, `/shorts/…`) e do Vimeo (inclusive com hash de vídeo privado). Deixe o vídeo como **não listado** para que só quem tem o link assista. Outros links são recusados no cadastro.
+- **Sessões** — duram 12 horas e são assinadas com `AUTH_SECRET`.
 
-As regras estão em `lib/curriculo-texto.js` e valem nos **dois lados**: na tela (`src/main.jsx`) e na API (`api/candidates.js`), de modo que nem o envio pelo "Compartilhar" do celular nem uma chamada direta ao endpoint escapam. Os limites ficam em `LIMITES` e as mensagens em `MSG`, nesse mesmo arquivo.
+## Identidade visual
 
-## Cadastro manual (sem arquivo)
+As cores seguem a linha da DOC CSC (azul `#092e46` + verde `#16a88b`). Para usar a logo oficial, substitua os arquivos em `public/` (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`) e troque o bloco `.cert-logo` em `src/Certificate.jsx` por uma `<img>` com a logo — é o único lugar do certificado que usa a marca em texto.
 
-A tela tem duas opções: **Enviar arquivo do currículo** e **Preencher meus dados**. No cadastro manual o candidato informa nome completo, profissão, especialidade/área de atuação, telefone, e-mail, cidade e estado — obrigatórios: nome, profissão, telefone, cidade e UF.
+O sistema é instalável como app de celular (PWA): no Android, menu ⋮ → *Instalar app*; no iPhone, *Compartilhar* → *Adicionar à Tela de Início*.
 
-- Regras em `lib/cadastro-manual.js`, usadas na tela e na API (`api/manual.js`): nome com pelo menos duas palavras e sem números, telefone com DDD (máscara automática), e-mail conferido quando preenchido, UF escolhida numa lista dos 27 estados (aceita também o nome do estado por extenso).
-- O registro vai para a mesma tabela `candidates`, com `resume_type='manual'` e um texto de resumo indexado para a busca. No portal interno esses cadastros aparecem normalmente na pesquisa e no painel, com a marca "Cadastro digitado pelo candidato" no lugar dos botões Visualizar e Baixar.
-- Médicos que informam a especialidade já caem no grupo certo do painel ("Médicos Pediatras", por exemplo).
+## Estrutura
 
-## Como funciona para o candidato
+```
+api/          auth, contracts, lessons, professionals, progress, engagement, certificate, pdf
+lib/          db (schema), auth (senhas e sessões), util (datas, vídeos, validações)
+src/          main (rotas), Login, Certificate, admin/*, student/* (Player mede o tempo)
+db/schema.sql schema completo, opcional
+```
 
-1. Abre o link, lê o aviso de formatos e toca em **Toque para escolher o currículo** para selecionar o PDF ou `.docx`.
-2. Toca em **Enviar currículo**. O texto é lido no próprio navegador e enviado junto com o arquivo.
-3. Aparece o pop-up **"Currículo cadastrado!"**; ao fechar, a tela volta limpa, pronta para outro envio.
+## LGPD
 
-No Android, o site pode ser instalado como app e aparece no menu **Compartilhar** do WhatsApp: o candidato compartilha o currículo e o envio acontece sozinho. No iPhone, o iOS não permite isso — o caminho é **Compartilhar → Salvar em Arquivos** e depois escolher o arquivo no site.
-
-## Observações
-
-- Página marcada com `noindex`: não aparece em buscas do Google. O link circula por quem você enviar.
-- Sendo um link público, qualquer pessoa com ele pode enviar um currículo. Não há como ler ou apagar dados por este site.
-- LGPD: o rodapé e o aviso na tela informam que os dados são usados em processos seletivos do DOC CSC. Se sua política exigir consentimento explícito, um checkbox pode ser adicionado antes do botão de envio.
+O sistema guarda nome, função, conselho de classe, contato e histórico de treinamento dos profissionais. Use `AUTH_SECRET` e uma senha forte de administrador, e mantenha os vídeos como não listados.
