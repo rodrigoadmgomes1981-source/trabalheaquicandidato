@@ -162,3 +162,52 @@ h1{font:800 clamp(24px,4vw,32px) Manrope;margin:0;color:var(--deep);letter-spaci
   .modos{grid-template-columns:1fr;gap:4px}
   .modos button{justify-content:flex-start;padding:11px 12px}
 }
+
+/* Navegação entre vagas e cadastro */
+.secoes{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;justify-content:center}
+.secoes button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:12px;padding:11px 16px;font:700 13px 'DM Sans',sans-serif;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.15s}
+.secoes button svg{width:16px}
+.secoes button em{font-style:normal;font-size:11px;font-weight:800;background:var(--soft);color:var(--brand-700);border-radius:20px;padding:1px 7px}
+.secoes button:hover{border-color:var(--brand);color:var(--brand-700)}
+.secoes button.ativo{background:var(--brand);border-color:var(--brand);color:#fff}
+.secoes button.ativo em{background:#fff;color:var(--brand-700)}
+
+/* Vagas */
+.vagas{display:grid;gap:14px}
+.vaga-card{border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:12px;background:#fff}
+.vaga-card .submit{margin-top:2px}
+.vaga-info h3{margin:0 0 8px;font:800 18px Manrope;color:var(--deep);line-height:1.25}
+.vaga-meta{display:flex;flex-wrap:wrap;gap:6px 16px}
+.vaga-meta span{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.vaga-meta svg{width:14px;color:var(--brand-600)}
+.vaga-desc{margin:0;font-size:13px;line-height:1.6;color:#45435F;white-space:pre-line}
+
+.voltar{border:1px solid var(--line);background:#fff;color:#45435F;border-radius:9px;padding:8px 12px;font:700 12px 'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:14px}
+.voltar:hover{background:var(--soft);border-color:var(--brand);color:var(--brand-700)}
+.voltar svg{width:14px}
+
+.escolhas{display:grid;gap:14px;margin-top:20px}
+.ja-tenho,.ainda-nao{border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px;background:#FBFAFE}
+.ja-tenho b,.ainda-nao b{display:flex;align-items:center;gap:8px;font:800 14px Manrope;color:var(--deep)}
+.ja-tenho b svg,.ainda-nao b svg{width:16px;color:var(--brand-600)}
+.ja-tenho p,.ainda-nao p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+.escolha-botoes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.escolha-botoes button{border:1px solid #DFDBEF;background:#fff;color:var(--deep);border-radius:11px;padding:13px;font:700 13px 'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.escolha-botoes button:hover{border-color:var(--brand);background:var(--soft);color:var(--brand-700)}
+.escolha-botoes button svg{width:16px}
+
+.vaga-alvo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--soft);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#3F33B0}
+.vaga-alvo>span{display:flex;align-items:center;gap:8px}
+.vaga-alvo svg{width:16px}
+.vaga-alvo button{margin-left:auto;border:0;background:none;color:var(--brand-700);font:700 12px 'DM Sans',sans-serif;text-decoration:underline;cursor:pointer;padding:0}
+
+.sem-vagas{display:grid;justify-items:center;gap:8px;text-align:center;border:1px dashed #C4BDE2;border-radius:16px;padding:30px 20px;color:var(--muted)}
+.sem-vagas>svg{width:34px;height:34px;color:#A99BFF}
+.sem-vagas b{font:800 16px Manrope;color:var(--deep)}
+.sem-vagas span{font-size:13px;max-width:380px}
+.sem-vagas .submit{max-width:300px;margin-top:8px}
+@media(max-width:600px){
+  .secoes{flex-direction:column}
+  .secoes button{justify-content:flex-start}
+  .escolha-botoes{grid-template-columns:1fr}
+}

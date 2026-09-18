@@ -1,7 +1,7 @@
 {
-  "name": "DOC CSC · Envie seu currículo",
-  "short_name": "Enviar currículo",
-  "description": "Envie seu currículo para o banco de talentos do DOC CSC.",
+  "name": "Talentos DOC · DOC CSC",
+  "short_name": "Talentos DOC",
+  "description": "Vagas abertas e banco de talentos do DOC CSC.",
   "lang": "pt-BR",
   "start_url": "/",
   "scope": "/",

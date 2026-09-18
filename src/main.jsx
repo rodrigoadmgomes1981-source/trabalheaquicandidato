@@ -1,7 +1,7 @@
 import './polyfills.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X,FileCheck2,ImageOff,PencilLine} from 'lucide-react';
+import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X,FileCheck2,ImageOff,PencilLine,Briefcase,MapPin,Building,BadgeDollarSign,Search,ArrowLeft,Send} from 'lucide-react';
 import mammoth from 'mammoth/mammoth.browser';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
 import {ACCEPT_ATTR,LIMITES,MSG,avaliarTexto,validarAssinatura,validarTipo} from '../lib/curriculo-texto.js';
@@ -73,7 +73,7 @@ async function extractText(file,tipo){
 }
 
 /** Pop-up de confirmação: fecha no botão, no Esc ou clicando fora. */
-function SuccessDialog({onClose}){
+function SuccessDialog({onClose,titulo,texto}){
   const ref=useRef(null);
   useEffect(()=>{
     ref.current?.focus();
@@ -86,8 +86,8 @@ function SuccessDialog({onClose}){
     <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
       <button type="button" className="dialog-close" onClick={onClose} aria-label="Fechar"><X/></button>
       <div className="dialog-icon"><CheckCircle2/></div>
-      <h2 id="dialog-title">Currículo cadastrado!</h2>
-      <p>Recebemos seu currículo. Se o seu perfil combinar com uma de nossas vagas, entraremos em contato.</p>
+      <h2 id="dialog-title">{titulo||'Currículo cadastrado!'}</h2>
+      <p>{texto||'Recebemos seu currículo. Se o seu perfil combinar com uma de nossas vagas, entraremos em contato.'}</p>
       <button type="button" className="dialog-ok" ref={ref} onClick={onClose}>Fechar</button>
     </div>
   </div>;
@@ -102,7 +102,33 @@ function App(){
   const [modo,setModo]=useState('arquivo');                 // 'arquivo' | 'manual'
   const [form,setForm]=useState({nome:'',profissao:'',telefone:'',email:'',especialidade:'',cidade:'',estado:''});
   const [erros,setErros]=useState({});
+  const [secao,setSecao]=useState('vagas');                 // 'vagas' | 'cadastro'
+  const [vagas,setVagas]=useState(null);
+  const [vaga,setVaga]=useState(null);                      // vaga escolhida ("Tenho interesse")
+  const [identificacao,setIdentificacao]=useState({telefone:'',email:''});
+  const [erroIdent,setErroIdent]=useState('');
+  const [enviandoIdent,setEnviandoIdent]=useState(false);
   const inputRef=useRef(null);
+
+  useEffect(()=>{
+    fetch('/api/jobs').then(r=>r.json()).then(d=>setVagas(d.vagas||[])).catch(()=>setVagas([]));
+  },[]);
+
+  /** Candidatura de quem já tem cadastro: identifica por telefone ou e-mail. */
+  const candidatarComCadastro=async e=>{
+    e.preventDefault();
+    setEnviandoIdent(true);setErroIdent('');
+    try{
+      const r=await fetch('/api/apply',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({jobId:vaga.id,...identificacao})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok){setErroIdent(d.error||'Não foi possível registrar seu interesse.');return}
+      setIdentificacao({telefone:'',email:''});
+      setVaga(null);
+      setDone({titulo:'Candidatura enviada!',texto:'Recebemos seu interesse nesta vaga. Se o seu perfil combinar, entraremos em contato.'});
+    }catch{setErroIdent('Sem conexão com o servidor. Tente novamente.')}
+    finally{setEnviandoIdent(false)}
+  };
 
   /** Volta a tela ao estado inicial. */
   const reset=()=>{
@@ -128,7 +154,7 @@ function App(){
     setLoading(true);setMessage('');setErros({});
     try{
       let r;
-      try{r=await fetch('/api/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(dados)})}
+      try{r=await fetch('/api/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(vaga?{...dados,vagaId:vaga.id}:dados)})}
       catch{throw Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.')}
       if(!r.ok){
         let d={};try{d=await r.json()}catch{}
@@ -136,7 +162,10 @@ function App(){
         throw Error(d.error||`Não foi possível cadastrar agora (erro ${r.status}). Tente novamente.`);
       }
       reset();
-      setDone(true);
+      setDone(vaga
+        ?{titulo:'Candidatura enviada!',texto:`Recebemos seus dados para a vaga ${vaga.title}. Se o seu perfil combinar, entraremos em contato.`}
+        :{titulo:'Cadastro concluído!',texto:'Recebemos seus dados. Se o seu perfil combinar com uma de nossas vagas, entraremos em contato.'});
+      setVaga(null);
     }catch(err){setMessage(err.message)}
     finally{setLoading(false)}
   };
@@ -164,6 +193,7 @@ function App(){
       fd.append('extractedText',texto.slice(0,50000));
       fd.append('paginas',String(paginas));
       fd.append('paginasComTexto',String(paginasComTexto));
+      if(vaga)fd.append('vagaId',vaga.id);
       let r;
       try{r=await fetch('/api/candidates',{method:'POST',body:fd})}
       catch{throw Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.')}
@@ -173,7 +203,10 @@ function App(){
         throw Error(d.error||`Não foi possível enviar agora (erro ${r.status}). Tente novamente.`);
       }
       reset();          // limpa a tela
-      setDone(true);    // e abre o pop-up de confirmação
+      setDone(vaga
+        ?{titulo:'Candidatura enviada!',texto:`Recebemos seu currículo para a vaga ${vaga.title}. Se o seu perfil combinar, entraremos em contato.`}
+        :{titulo:'Currículo cadastrado!',texto:'Recebemos seu currículo. Se o seu perfil combinar com uma de nossas vagas, entraremos em contato.'});
+      setVaga(null);
     }catch(err){setMessage(err.message)}
     finally{setLoading(false)}
   };
@@ -197,13 +230,84 @@ function App(){
     }).catch(()=>setMessage('Não foi possível receber o arquivo compartilhado. Tente enviá-lo pelo botão abaixo.'));
   },[]);
 
+  const VagaResumo=({v})=><div className="vaga-info">
+    <h3>{v.title}</h3>
+    <div className="vaga-meta">
+      <span><MapPin/>{[v.city,v.state].filter(Boolean).join('/')}</span>
+      <span><Building/>{v.location}</span>
+      <span><Briefcase/>{v.contract}</span>
+      <span><BadgeDollarSign/>{v.salary}</span>
+    </div>
+  </div>;
+
   return <div className="page">
     <header className="topbar">
       <img src="/logo-doccsc-light.png" alt="doc csc · centro de serviços compartilhados"/>
-      <span>Banco de Talentos</span>
+      <span>Talentos DOC</span>
     </header>
 
-    <main className="card">
+    <nav className="secoes">
+      <button type="button" className={secao==='vagas'?'ativo':''} onClick={()=>{setSecao('vagas');setMessage('')}}><Briefcase/>Vagas abertas{vagas?.length>0&&<em>{vagas.length}</em>}</button>
+      <button type="button" className={secao==='cadastro'?'ativo':''} onClick={()=>{setSecao('cadastro');setMessage('')}}><UploadCloud/>Enviar meu currículo</button>
+    </nav>
+
+    {secao==='vagas'&&<main className="card">
+      {vaga?<>
+        <button type="button" className="voltar" onClick={()=>{setVaga(null);setErroIdent('')}}><ArrowLeft/>Voltar às vagas</button>
+        <h1>Tenho interesse</h1>
+        <VagaResumo v={vaga}/>
+        {vaga.description&&<p className="vaga-desc">{vaga.description}</p>}
+
+        <div className="escolhas">
+          <form className="ja-tenho" onSubmit={candidatarComCadastro}>
+            <b><Search/>Já enviei meu currículo antes</b>
+            <p>Informe o telefone ou o e-mail do seu cadastro que nós ligamos você a esta vaga.</p>
+            <div className="campos">
+              <label className="campo"><span>Telefone / WhatsApp</span>
+                <input value={identificacao.telefone} onChange={e=>{setIdentificacao(i=>({...i,telefone:formatarTelefone(e.target.value)}));setErroIdent('')}} placeholder="(69) 99999-9999" inputMode="tel"/>
+              </label>
+              <label className="campo"><span>ou E-mail</span>
+                <input value={identificacao.email} onChange={e=>{setIdentificacao(i=>({...i,email:e.target.value}));setErroIdent('')}} placeholder="seunome@email.com" inputMode="email"/>
+              </label>
+            </div>
+            {erroIdent&&<div className="alert">{erroIdent}</div>}
+            <button className="submit" disabled={enviandoIdent}>{enviandoIdent?<Loader2 className="spin"/>:<Send/>}Confirmar interesse</button>
+          </form>
+
+          <div className="ainda-nao">
+            <b><PencilLine/>Ainda não tenho cadastro</b>
+            <p>Escolha como quer se candidatar. Seus dados entram no banco de talentos e já ficam ligados a esta vaga.</p>
+            <div className="escolha-botoes">
+              <button type="button" onClick={()=>{setSecao('cadastro');setModo('arquivo')}}><UploadCloud/>Enviar meu currículo</button>
+              <button type="button" onClick={()=>{setSecao('cadastro');setModo('manual')}}><PencilLine/>Preencher meus dados</button>
+            </div>
+          </div>
+        </div>
+      </>:<>
+        <h1>Vagas abertas</h1>
+        <p className="lead">Veja as oportunidades do DOC CSC e candidate-se em um toque. Não encontrou uma vaga para você? Envie seu currículo assim mesmo — ele fica no banco de talentos.</p>
+        {!vagas&&<div className="processing"><Loader2 className="spin"/><span><b>Carregando as vagas...</b><small>Só um instante.</small></span></div>}
+        <div className="vagas">
+          {(vagas||[]).map(v=><article key={v.id} className="vaga-card">
+            <VagaResumo v={v}/>
+            {v.description&&<p className="vaga-desc">{v.description}</p>}
+            <button type="button" className="submit" onClick={()=>{setVaga(v);setErroIdent('')}}><Send/>Tenho interesse</button>
+          </article>)}
+        </div>
+        {vagas&&vagas.length===0&&<div className="sem-vagas">
+          <Briefcase/>
+          <b>Nenhuma vaga aberta no momento</b>
+          <span>Envie seu currículo mesmo assim: quando surgir uma vaga com o seu perfil, entramos em contato.</span>
+          <button type="button" className="submit" onClick={()=>setSecao('cadastro')}><UploadCloud/>Enviar meu currículo</button>
+        </div>}
+      </>}
+    </main>}
+
+    {secao==='cadastro'&&<main className="card">
+      {vaga&&<div className="vaga-alvo">
+        <span><Send/>Candidatura para <b>{vaga.title}</b> · {[vaga.city,vaga.state].filter(Boolean).join('/')}</span>
+        <button type="button" onClick={()=>setVaga(null)}>Enviar sem vincular a uma vaga</button>
+      </div>}
       <h1>Envie seu currículo</h1>
       <p className="lead">Seu currículo entra no nosso banco de talentos e é considerado nas vagas abertas. Envie o arquivo do currículo ou, se não tiver um, preencha seus dados.</p>
 
@@ -301,7 +405,7 @@ function App(){
           <Smartphone/>
           {isIOS()
             ?<span>Está no celular? No WhatsApp, abra o currículo e use <b>Compartilhar → Salvar em Arquivos</b>; depois escolha o arquivo aqui.</span>
-            :<span>Também é possível enviar direto do WhatsApp: toque e segure o currículo, escolha <b>Compartilhar</b> <Share2/> e selecione este app.</span>}
+            :<span>Também é possível enviar direto do WhatsApp: toque e segure o currículo, escolha <b>Compartilhar</b> <Share2/> e selecione <b>Talentos DOC</b>.</span>}
         </p>}
 
         {loading&&<div className="processing">
@@ -318,11 +422,11 @@ function App(){
 
         <p className="privacy"><ShieldCheck/>Seus dados são usados apenas para processos seletivos do DOC CSC e ficam guardados em ambiente restrito à equipe de recrutamento.</p>
       </form>}
-    </main>
+    </main>}
 
     <footer className="foot">DOC CSC · Centro de Serviços Compartilhados</footer>
 
-    {done&&<SuccessDialog onClose={()=>setDone(false)}/>}
+    {done&&<SuccessDialog titulo={done.titulo} texto={done.texto} onClose={()=>setDone(false)}/>}
   </div>;
 }
 

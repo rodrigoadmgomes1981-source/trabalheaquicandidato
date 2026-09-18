@@ -3,6 +3,7 @@ import {database,ensureSchema} from '../lib/db.js';
 import {buildSearchText} from '../lib/extract.js';
 import {resumoDoCadastro,validarCadastroManual} from '../lib/cadastro-manual.js';
 import {authorized} from '../lib/util.js';
+import {criarCandidatura} from './apply.js';
 
 /**
  * Cadastro manual: o candidato digita os dados, sem arquivo de currículo.
@@ -51,7 +52,9 @@ export default async function handler(req,res){
     const id=randomUUID();
     await sql`INSERT INTO candidates(id,name,phone,email,profession,council,council_number,city,state,experience_years,skills,sectors,specialties,employers,education,summary,resume_text,search_text,resume_url,resume_name,resume_type,resume_data)
       VALUES(${id},${c.name},${c.phone},${c.email},${c.profession},${c.council},${c.councilNumber},${c.city},${c.state},${c.experienceYears},${c.skills},${c.sectors},${c.specialties},${c.employers},${c.education},${c.summary},${texto},${buildSearchText(c,texto)},'','Cadastro manual','manual',NULL)`;
-    return res.status(201).json({ok:true});
+
+    const candidatura=entrada.vagaId?await criarCandidatura(sql,String(entrada.vagaId),id):null;
+    return res.status(201).json({ok:true,candidatura:Boolean(candidatura)});
   }catch(e){
     console.error(e);
     if(e.message==='CORPO_GRANDE')return res.status(413).json({error:'Dados muito grandes.'});

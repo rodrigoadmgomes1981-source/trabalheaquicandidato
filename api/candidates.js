@@ -4,6 +4,7 @@ import {database,ensureSchema} from '../lib/db.js';
 import {buildSearchText,clean,parseResume} from '../lib/extract.js';
 import {avaliarTexto,validarAssinatura,validarTipo} from '../lib/curriculo-texto.js';
 import {authorized,MAX_UPLOAD} from '../lib/util.js';
+import {criarCandidatura} from './apply.js';
 
 async function readForm(req){
   const chunks=[];let size=0;
@@ -59,8 +60,12 @@ export default async function handler(req,res){
     const searchText=buildSearchText(c,text);
     await sql`INSERT INTO candidates(id,name,phone,email,profession,council,council_number,city,state,experience_years,skills,sectors,specialties,employers,education,summary,resume_text,search_text,resume_url,resume_name,resume_type,resume_data)
       VALUES(${id},${c.name},${c.phone},${c.email},${c.profession},${c.council},${c.councilNumber},${c.city},${c.state},${c.experienceYears},${c.skills},${c.sectors},${c.specialties},${c.employers},${c.education},${c.summary},${text},${searchText},${resumeUrl},${file.name||safeName},${type},decode(${resumeData}::text,'base64'))`;
+    // Veio de uma vaga? registra o interesse do candidato nela.
+    const vagaId=String(form.get('vagaId')||'');
+    const candidatura=vagaId?await criarCandidatura(sql,vagaId,id):null;
+
     // O candidato não recebe de volta os dados lidos: só a confirmação.
-    return res.status(201).json({ok:true});
+    return res.status(201).json({ok:true,candidatura:Boolean(candidatura)});
   }catch(e){
     console.error(e);
     if(e.message==='FILE_TOO_LARGE')return res.status(413).json({error:'O arquivo deve ter até 4 MB.'});

@@ -1,4 +1,4 @@
-# DOC CSC · Envie seu currículo (site do candidato)
+# Talentos DOC — portal do candidato
 
 Site público, com a identidade DOC CSC, que faz **apenas uma coisa**: receber o currículo do candidato (PDF ou DOCX, até 4 MB), ler o texto e cadastrar no **mesmo banco de talentos** usado pelo sistema interno.
 
@@ -17,6 +17,17 @@ Não existe pesquisa, visualização, download nem exclusão aqui: a única rota
 4. Deploy. O endereço gerado (ex.: `trabalheaqui-candidato.vercel.app`) é o link para mandar aos candidatos.
 
 > A tabela `candidates` é criada automaticamente no primeiro envio, se ainda não existir (`db/schema.sql` tem o script equivalente).
+
+## Vagas abertas
+
+A primeira tela mostra as vagas publicadas no portal interno (espelhadas por `GET /api/jobs`, somente as com situação *publicada*), com vaga, cidade/UF, local, tipo de contratação, valor e descrição.
+
+Em **Tenho interesse** o candidato tem dois caminhos:
+
+- **Já enviei meu currículo antes**: informa telefone ou e-mail; `POST /api/apply` localiza a ficha (pelo fim do telefone, ignorando máscara e DDI, ou pelo e-mail) e registra a candidatura. Se não achar, a tela orienta a enviar o currículo.
+- **Ainda não tenho cadastro**: envia o currículo ou preenche os dados; o `vagaId` viaja junto e a candidatura é criada logo após o cadastro.
+
+Candidatar-se duas vezes na mesma vaga não duplica. A candidatura nasce na etapa *Recebido* e a triagem acontece no portal interno.
 
 ## Formatos aceitos
 
