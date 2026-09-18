@@ -31,6 +31,14 @@ Recusados, com mensagem explicando o motivo e como resolver:
 
 As regras estão em `lib/curriculo-texto.js` e valem nos **dois lados**: na tela (`src/main.jsx`) e na API (`api/candidates.js`), de modo que nem o envio pelo "Compartilhar" do celular nem uma chamada direta ao endpoint escapam. Os limites ficam em `LIMITES` e as mensagens em `MSG`, nesse mesmo arquivo.
 
+## Cadastro manual (sem arquivo)
+
+A tela tem duas opções: **Enviar arquivo do currículo** e **Preencher meus dados**. No cadastro manual o candidato informa nome completo, profissão, especialidade/área de atuação, telefone, e-mail, cidade e estado — obrigatórios: nome, profissão, telefone, cidade e UF.
+
+- Regras em `lib/cadastro-manual.js`, usadas na tela e na API (`api/manual.js`): nome com pelo menos duas palavras e sem números, telefone com DDD (máscara automática), e-mail conferido quando preenchido, UF escolhida numa lista dos 27 estados (aceita também o nome do estado por extenso).
+- O registro vai para a mesma tabela `candidates`, com `resume_type='manual'` e um texto de resumo indexado para a busca. No portal interno esses cadastros aparecem normalmente na pesquisa e no painel, com a marca "Cadastro digitado pelo candidato" no lugar dos botões Visualizar e Baixar.
+- Médicos que informam a especialidade já caem no grupo certo do painel ("Médicos Pediatras", por exemplo).
+
 ## Como funciona para o candidato
 
 1. Abre o link, lê o aviso de formatos e toca em **Toque para escolher o currículo** para selecionar o PDF ou `.docx`.

@@ -1,10 +1,11 @@
 import './polyfills.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X,FileCheck2,ImageOff} from 'lucide-react';
+import {UploadCloud,Loader2,CheckCircle2,ShieldCheck,FileText,Smartphone,Share2,X,FileCheck2,ImageOff,PencilLine} from 'lucide-react';
 import mammoth from 'mammoth/mammoth.browser';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
 import {ACCEPT_ATTR,LIMITES,MSG,avaliarTexto,validarAssinatura,validarTipo} from '../lib/curriculo-texto.js';
+import {ESTADOS,PROFISSOES_SUGERIDAS,formatarTelefone,validarCadastroManual} from '../lib/cadastro-manual.js';
 import './styles.css';
 
 const MAX_UPLOAD=4*1024*1024;
@@ -98,6 +99,9 @@ function App(){
   const [message,setMessage]=useState('');
   const [done,setDone]=useState(false);
   const [dragging,setDragging]=useState(false);
+  const [modo,setModo]=useState('arquivo');                 // 'arquivo' | 'manual'
+  const [form,setForm]=useState({nome:'',profissao:'',telefone:'',email:'',especialidade:'',cidade:'',estado:''});
+  const [erros,setErros]=useState({});
   const inputRef=useRef(null);
 
   /** Volta a tela ao estado inicial. */
@@ -105,7 +109,36 @@ function App(){
     setFile(null);
     setMessage('');
     setDragging(false);
+    setErros({});
+    setForm({nome:'',profissao:'',telefone:'',email:'',especialidade:'',cidade:'',estado:''});
     if(inputRef.current)inputRef.current.value='';
+  };
+
+  const mudarCampo=(campo,valor)=>{
+    setForm(f=>({...f,[campo]:campo==='telefone'?formatarTelefone(valor):valor}));
+    setErros(e=>{const {[campo]:_,...resto}=e;return resto});
+    setMessage('');
+  };
+
+  /** Envia o cadastro digitado (sem arquivo de currículo). */
+  const enviarManual=async e=>{
+    e.preventDefault();
+    const {ok,erros:falhas,dados}=validarCadastroManual(form);
+    if(!ok){setErros(falhas);setMessage('Confira os campos destacados.');return}
+    setLoading(true);setMessage('');setErros({});
+    try{
+      let r;
+      try{r=await fetch('/api/manual',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(dados)})}
+      catch{throw Error('Sem conexão com o servidor. Verifique sua internet e tente novamente.')}
+      if(!r.ok){
+        let d={};try{d=await r.json()}catch{}
+        if(d.erros)setErros(d.erros);
+        throw Error(d.error||`Não foi possível cadastrar agora (erro ${r.status}). Tente novamente.`);
+      }
+      reset();
+      setDone(true);
+    }catch(err){setMessage(err.message)}
+    finally{setLoading(false)}
   };
 
   const chooseFile=f=>{
@@ -172,9 +205,76 @@ function App(){
 
     <main className="card">
       <h1>Envie seu currículo</h1>
-      <p className="lead">Seu currículo entra no nosso banco de talentos e é considerado nas vagas abertas. É rápido: só anexar o arquivo.</p>
+      <p className="lead">Seu currículo entra no nosso banco de talentos e é considerado nas vagas abertas. Envie o arquivo do currículo ou, se não tiver um, preencha seus dados.</p>
 
-      <form onSubmit={submit}>
+      <div className="modos" role="tablist">
+        <button type="button" role="tab" aria-selected={modo==='arquivo'} className={modo==='arquivo'?'ativo':''}
+          onClick={()=>{setModo('arquivo');setMessage('');setErros({})}}><UploadCloud/>Enviar arquivo do currículo</button>
+        <button type="button" role="tab" aria-selected={modo==='manual'} className={modo==='manual'?'ativo':''}
+          onClick={()=>{setModo('manual');setMessage('');setErros({})}}><PencilLine/>Preencher meus dados</button>
+      </div>
+
+      {modo==='manual'?<form onSubmit={enviarManual} noValidate>
+        <p className="tip"><PencilLine/><span>Não tem o currículo em arquivo? Preencha os campos abaixo — leva menos de um minuto. Depois, se quiser, você pode voltar e enviar o currículo completo.</span></p>
+
+        <div className="campos">
+          <label className={'campo wide'+(erros.nome?' erro':'')}>
+            <span>Nome completo *</span>
+            <input value={form.nome} onChange={e=>mudarCampo('nome',e.target.value)} placeholder="Ex.: Maria Fernanda Oliveira" autoComplete="name" disabled={loading}/>
+            {erros.nome&&<small>{erros.nome}</small>}
+          </label>
+
+          <label className={'campo'+(erros.profissao?' erro':'')}>
+            <span>Profissão *</span>
+            <input value={form.profissao} onChange={e=>mudarCampo('profissao',e.target.value)} placeholder="Ex.: Enfermeira" list="profissoes" disabled={loading}/>
+            <datalist id="profissoes">{PROFISSOES_SUGERIDAS.map(p=><option key={p} value={p}/>)}</datalist>
+            {erros.profissao&&<small>{erros.profissao}</small>}
+          </label>
+
+          <label className="campo">
+            <span>Especialidade / área de atuação</span>
+            <input value={form.especialidade} onChange={e=>mudarCampo('especialidade',e.target.value)} placeholder="Ex.: Pediatria, UTI adulto" disabled={loading}/>
+            <small className="ajuda">Para médicos, informe a especialidade (pediatria, ginecologia e obstetrícia, ortopedia...).</small>
+          </label>
+
+          <label className={'campo'+(erros.telefone?' erro':'')}>
+            <span>Telefone / WhatsApp *</span>
+            <input value={form.telefone} onChange={e=>mudarCampo('telefone',e.target.value)} placeholder="(69) 99999-9999" inputMode="tel" autoComplete="tel" disabled={loading}/>
+            {erros.telefone&&<small>{erros.telefone}</small>}
+          </label>
+
+          <label className={'campo'+(erros.email?' erro':'')}>
+            <span>E-mail</span>
+            <input value={form.email} onChange={e=>mudarCampo('email',e.target.value)} placeholder="seunome@email.com" inputMode="email" autoComplete="email" disabled={loading}/>
+            {erros.email&&<small>{erros.email}</small>}
+          </label>
+
+          <label className={'campo'+(erros.cidade?' erro':'')}>
+            <span>Cidade *</span>
+            <input value={form.cidade} onChange={e=>mudarCampo('cidade',e.target.value)} placeholder="Ex.: Porto Velho" autoComplete="address-level2" disabled={loading}/>
+            {erros.cidade&&<small>{erros.cidade}</small>}
+          </label>
+
+          <label className={'campo'+(erros.estado?' erro':'')}>
+            <span>Estado *</span>
+            <select value={form.estado} onChange={e=>mudarCampo('estado',e.target.value)} disabled={loading}>
+              <option value="">Selecione</option>
+              {ESTADOS.map(e=><option key={e.uf} value={e.uf}>{e.nome} ({e.uf})</option>)}
+            </select>
+            {erros.estado&&<small>{erros.estado}</small>}
+          </label>
+        </div>
+
+        {loading&&<div className="processing"><Loader2 className="spin"/><span><b>Enviando seu cadastro...</b><small>Só um instante.</small></span></div>}
+        {message&&<div className="alert">{message}</div>}
+
+        <button className="submit" disabled={loading}>
+          {loading?<Loader2 className="spin"/>:<CheckCircle2/>}
+          {loading?'Enviando...':'Concluir cadastro'}
+        </button>
+
+        <p className="privacy"><ShieldCheck/>Seus dados são usados apenas para processos seletivos do DOC CSC e ficam guardados em ambiente restrito à equipe de recrutamento.</p>
+      </form>:<form onSubmit={submit}>
         <div className="steps">
           <span><b>1</b> Anexe o arquivo</span><i/>
           <span><b>2</b> Leitura automática</span><i/>
@@ -217,7 +317,7 @@ function App(){
         </button>
 
         <p className="privacy"><ShieldCheck/>Seus dados são usados apenas para processos seletivos do DOC CSC e ficam guardados em ambiente restrito à equipe de recrutamento.</p>
-      </form>
+      </form>}
     </main>
 
     <footer className="foot">DOC CSC · Centro de Serviços Compartilhados</footer>
